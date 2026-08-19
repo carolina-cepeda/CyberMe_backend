@@ -1,8 +1,9 @@
 """Async username probe across the WhatsMyName target list.
 
-Detection combines the first-hop HTTP status with the WhatsMyName content
+Detection combines first-hop/final HTTP status with the WhatsMyName content
 markers (exists_marker / miss_marker) to cut false positives from soft-404
-pages that return a 200 status.
+pages that return a 200 status. Deterministic bot-blocks (403) are reported
+as a distinct `blocked` verdict.
 """
 
 import asyncio
@@ -10,8 +11,10 @@ import logging
 import secrets
 from dataclasses import dataclass
 from enum import Enum
+from urllib.parse import urlsplit
 
-import httpx
+from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.errors import RequestsError
 
 from app import config
 from app.osint.targets import Target
@@ -22,6 +25,8 @@ logger = logging.getLogger(__name__)
 class Verdict(str, Enum):
     DETECTED = "detected"
     NOT_FOUND = "not_found"
+    BLOCKED = "blocked"
+    UNREACHABLE = "unreachable"
     INCONCLUSIVE = "inconclusive"
 
 
@@ -40,12 +45,16 @@ class ProbeResult:
         return self.verdict is Verdict.DETECTED
 
     @property
-    def inconclusive(self) -> bool:
-        return self.verdict is Verdict.INCONCLUSIVE
+    def blocked(self) -> bool:
+        return self.verdict is Verdict.BLOCKED
 
     @property
-    def is_request_error(self) -> bool:
-        return bool(self.verdict_reason and self.verdict_reason.startswith("request_error"))
+    def unreachable(self) -> bool:
+        return self.verdict is Verdict.UNREACHABLE
+
+    @property
+    def inconclusive(self) -> bool:
+        return self.verdict is Verdict.INCONCLUSIVE
 
 
 # TODO(remove): temporary control username for FPR estimation diagnostics.
@@ -57,67 +66,99 @@ def _build_url(target: Target, username: str) -> str:
     return target.probe_url_template.replace("{account}", username).replace("{}", username)
 
 
-def _first_hop_status_code(response: httpx.Response) -> int:
-    if response.history:
-        return response.history[0].status_code
-    return response.status_code
-
-
 def classify_response(
-    observed_status_code: int | None,
+    first_hop_status: int | None,
+    final_status: int | None,
     observed_body: str | None,
     target: Target,
     require_exists_marker: bool = config.REQUIRE_EXISTS_MARKER,
 ) -> tuple[Verdict, bool, bool, str | None]:
-    """Classify a probe response using status + content markers.
+    """Classify a probe response using statuses + content markers.
 
-    Returns (verdict, exists_marker_matched, miss_marker_matched, reason).
+    A status matches `exists_status_code` if either the first hop or the
+    final response matches (redirect-aware). Returns
+    (verdict, exists_marker_matched, miss_marker_matched, reason).
     """
     body = observed_body or ""
     exists_marker_matched = bool(target.exists_marker) and target.exists_marker in body
     miss_marker_matched = bool(target.miss_marker) and target.miss_marker in body
 
-    if observed_status_code is None:
+    if first_hop_status is None:
         return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "request_error"
     if target.is_protected:
         return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "protected"
     if miss_marker_matched:
         return Verdict.NOT_FOUND, exists_marker_matched, miss_marker_matched, "miss_marker"
-    if (
+
+    exists_status_match = (
+        first_hop_status == target.exists_status_code
+        or final_status == target.exists_status_code
+    )
+    miss_status_match = (
         target.miss_status_code is not None
-        and observed_status_code == target.miss_status_code
-    ):
+        and (
+            first_hop_status == target.miss_status_code
+            or final_status == target.miss_status_code
+        )
+    )
+
+    if miss_status_match and not exists_status_match:
         return Verdict.NOT_FOUND, exists_marker_matched, miss_marker_matched, "miss_status"
-    if observed_status_code != target.exists_status_code:
-        return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "unexpected_status"
-    if require_exists_marker and target.exists_marker and not exists_marker_matched:
-        return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "exists_marker_absent"
-    return Verdict.DETECTED, exists_marker_matched, miss_marker_matched, None
+    if exists_status_match:
+        if require_exists_marker and target.exists_marker and not exists_marker_matched:
+            return (
+                Verdict.INCONCLUSIVE,
+                exists_marker_matched,
+                miss_marker_matched,
+                "exists_marker_absent",
+            )
+        return Verdict.DETECTED, exists_marker_matched, miss_marker_matched, None
+    if final_status in (404, 410) and target.exists_status_code not in (404, 410):
+        return Verdict.NOT_FOUND, exists_marker_matched, miss_marker_matched, "not_found_status"
+    if first_hop_status in (403,) or final_status in (403,):
+        return Verdict.BLOCKED, exists_marker_matched, miss_marker_matched, "bot_blocked"
+    return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "unexpected_status"
 
 
 async def _probe_one(
-    client: httpx.AsyncClient, target: Target, username: str
+    client: AsyncSession, target: Target, username: str
 ) -> ProbeResult:
     url = _build_url(target, username)
     last_error: Exception | None = None
 
     for attempt in range(1 + config.DEFAULT_PROBE_RETRIES):
         try:
-            response = await client.get(url, headers=target.request_headers or None)
-            status_code = _first_hop_status_code(response)
+            response = await client.get(
+                url,
+                headers=target.request_headers or None,
+                impersonate="chrome124",
+                allow_redirects=True,
+            )
+            final_status = response.status_code
+            first_hop_status = (
+                response.history[0].status_code if response.history else final_status
+            )
+
+            if (
+                attempt < config.DEFAULT_PROBE_RETRIES
+                and final_status in config.PROBE_RETRY_STATUS_CODES
+            ):
+                await asyncio.sleep(config.PROBE_RETRY_DELAY)
+                continue
+
             verdict, exists_matched, miss_matched, reason = classify_response(
-                status_code, response.text, target
+                first_hop_status, final_status, response.text, target
             )
             return ProbeResult(
                 target=target,
                 requested_url=url,
-                observed_status_code=status_code,
+                observed_status_code=first_hop_status,
                 verdict=verdict,
                 exists_marker_matched=exists_matched,
                 miss_marker_matched=miss_matched,
                 verdict_reason=reason,
             )
-        except httpx.HTTPError as exc:
+        except RequestsError as exc:
             last_error = exc
             logger.debug("probe failed for %s: %s", target.platform_name, exc)
             if attempt < config.DEFAULT_PROBE_RETRIES:
@@ -127,7 +168,7 @@ async def _probe_one(
         target=target,
         requested_url=url,
         observed_status_code=None,
-        verdict=Verdict.INCONCLUSIVE,
+        verdict=Verdict.UNREACHABLE,
         exists_marker_matched=False,
         miss_marker_matched=False,
         verdict_reason=f"request_error: {last_error!r}",
@@ -142,14 +183,23 @@ async def check_username(
 ) -> list[ProbeResult]:
     """Probe one slug across all targets. Results keep input order."""
     semaphore = asyncio.Semaphore(concurrency)
+    host_locks: dict[str, asyncio.Semaphore] = {}
+
+    def host_semaphore(hostname: str) -> asyncio.Semaphore:
+        lock = host_locks.get(hostname)
+        if lock is None:
+            lock = asyncio.Semaphore(config.MAX_PER_HOST_CONCURRENCY)
+            host_locks[hostname] = lock
+        return lock
 
     async def limited(target: Target) -> ProbeResult:
+        hostname = urlsplit(_build_url(target, username)).netloc
         async with semaphore:
-            return await _probe_one(client, target, username)
+            async with host_semaphore(hostname):
+                return await _probe_one(client, target, username)
 
-    async with httpx.AsyncClient(
+    async with AsyncSession(
         timeout=timeout,
-        follow_redirects=True,
         headers={"User-Agent": "CiberMe/0.1 (+https://github.com/)"},
     ) as client:
         return await asyncio.gather(*(limited(t) for t in targets))

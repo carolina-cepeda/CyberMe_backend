@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS scan_results (
     exists_status_code INTEGER NOT NULL,
     exists_marker TEXT NOT NULL DEFAULT '',
     miss_marker TEXT NOT NULL DEFAULT '',
+    verdict TEXT NOT NULL DEFAULT 'inconclusive',
     detected INTEGER NOT NULL DEFAULT 0,
+    blocked INTEGER NOT NULL DEFAULT 0,
     inconclusive INTEGER NOT NULL DEFAULT 0,
     verdict_reason TEXT,
     exists_marker_matched INTEGER,
@@ -118,9 +120,10 @@ def save_scan_result(scan_id: int, result, probed_variant: str = "") -> None:
             """
             INSERT INTO scan_results
                 (scan_id, platform_name, probed_url, probed_variant, observed_status_code,
-                 exists_status_code, exists_marker, miss_marker, detected, inconclusive,
-                 verdict_reason, exists_marker_matched, miss_marker_matched, category, is_core)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 exists_status_code, exists_marker, miss_marker, verdict, detected, blocked,
+                 inconclusive, verdict_reason, exists_marker_matched, miss_marker_matched,
+                 category, is_core)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 scan_id,
@@ -131,7 +134,9 @@ def save_scan_result(scan_id: int, result, probed_variant: str = "") -> None:
                 result.target.exists_status_code,
                 result.target.exists_marker,
                 result.target.miss_marker,
+                result.verdict.value,
                 int(result.detected),
+                int(result.blocked),
                 int(result.inconclusive),
                 result.verdict_reason,
                 int(result.exists_marker_matched) if result.exists_marker_matched is not None else None,

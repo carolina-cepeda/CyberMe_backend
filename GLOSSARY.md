@@ -23,9 +23,11 @@ Short memory aid: **`e` = exists**, **`m` = miss**.
 
 | Verdict | Meaning |
 | :--- | :--- |
-| `detected` | Strong positive: status matches `exists_status_code` AND `exists_marker` is present (and `miss_marker` is absent) |
-| `not_found` | Status matches `miss_status_code` OR `miss_marker` present (soft-404 page returned a 200) |
-| `inconclusive` | Cannot decide: protected site, unexpected status, `exists_marker` absent, or request error |
+| `detected` | Strong positive: status matches `exists_status_code` (first hop OR final, redirect-aware) AND `exists_marker` is present (and `miss_marker` is absent) |
+| `not_found` | Status matches `miss_status_code`, or `miss_marker` present (soft-404 page returned a 200), or a `404/410` fallback |
+| `blocked` | Deterministic bot-block (persistent `403`), e.g. Cloudflare challenge — account presence unknown |
+| `unreachable` | Network-level failure (TLS reset / DNS / timeout), e.g. domains filtered by the local network — account presence unknown |
+| `inconclusive` | Cannot decide: unexpected status, `exists_marker` absent, protected site |
 
 ## Scan metrics
 
@@ -35,6 +37,8 @@ Short memory aid: **`e` = exists**, **`m` = miss**.
 | `matches` | Number of platforms with verdict = `detected` |
 | `fpr` / `false_positive_rate` | Share of control-scan probes falsely detected (probed with a random near-nonexistent username) |
 | `core` / `secondary` | Account tier used by the scoring engine (−30 / −15 points) |
+| `blocked` | Count of platforms that returned a deterministic bot-block (403) |
+| `unreachable` | Count of platforms that failed at the network level (TLS reset, DNS, timeout) |
 | `slug` | URL-safe normalization of the input (`"John Doe"` → `johndoe`) |
 | `variant` | One of several slug forms for the same name (`johndoe`, `john.doe`, `john-doe`) |
 | `probe_url_template`→`requested_url` | The `{account}` placeholder replaced by the probed slug |

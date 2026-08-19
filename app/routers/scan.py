@@ -30,8 +30,9 @@ class ScanResponse(BaseModel):
     matches: int
     core_matches: int
     secondary_matches: int
+    blocked: int
+    unreachable: int
     inconclusive: int
-    errors: int
 
 
 async def _apply_fallback_passes(
@@ -97,14 +98,15 @@ async def run_scan(payload: ScanRequest) -> ScanResponse:
     core_matches = sum(1 for r in matches if r.target.is_core)
     secondary_matches = sum(1 for r in matches if not r.target.is_core)
     probed = len(results)
+    blocked = sum(1 for r in results if r.blocked)
+    unreachable = sum(1 for r in results if r.unreachable)
     inconclusive = sum(1 for r in results if r.inconclusive)
-    errors = sum(1 for r in results if r.is_request_error)
 
     # TODO(remove): temporary statistics print.
     print(
         f"[SCAN-STATS] username={raw_input} slug={primary_slug} variants={sorted(set(used_variants))} "
         f"probed={probed} matches={len(matches)} core={core_matches} secondary={secondary_matches} "
-        f"inconclusive={inconclusive} errors={errors} "
+        f"blocked={blocked} unreachable={unreachable} inconclusive={inconclusive} "
         f"detection_rate={(len(matches) / probed * 100) if probed else 0:.1f}%"
     )
     print(
@@ -122,6 +124,7 @@ async def run_scan(payload: ScanRequest) -> ScanResponse:
         matches=len(matches),
         core_matches=core_matches,
         secondary_matches=secondary_matches,
+        blocked=blocked,
+        unreachable=unreachable,
         inconclusive=inconclusive,
-        errors=errors,
     )
