@@ -12,6 +12,7 @@ from app.db.database import (
 )
 from app.osint import checker, slugs, targets
 from app.osint.control import run_control_scan
+from app.osint.official_apis import OfficialApiResult, run_official_api_checks
 
 router = APIRouter(prefix="/api", tags=["scan"])
 
@@ -19,6 +20,17 @@ router = APIRouter(prefix="/api", tags=["scan"])
 class ScanRequest(BaseModel):
     username: str
     expand_names: bool = False
+
+
+class OfficialApiOut(BaseModel):
+    platform: str
+    exists: bool
+    profile_url: str | None = None
+    display_name: str | None = None
+    bio: str | None = None
+    created_at: str | None = None
+    followers: int | None = None
+    extra: dict | None = None
 
 
 class ScanResponse(BaseModel):
@@ -33,6 +45,7 @@ class ScanResponse(BaseModel):
     blocked: int
     unreachable: int
     inconclusive: int
+    official_apis: list[OfficialApiOut]
 
 
 async def _apply_fallback_passes(
@@ -60,6 +73,19 @@ async def _apply_fallback_passes(
                 used_variants[index] = variant
 
 
+def _result_to_official_out(r: OfficialApiResult) -> OfficialApiOut:
+    return OfficialApiOut(
+        platform=r.platform,
+        exists=r.exists,
+        profile_url=r.profile_url,
+        display_name=r.display_name,
+        bio=r.bio,
+        created_at=r.created_at,
+        followers=r.followers,
+        extra=r.extra,
+    )
+
+
 @router.post("/scan", response_model=ScanResponse)
 async def run_scan(payload: ScanRequest) -> ScanResponse:
     raw_input = payload.username.strip()
@@ -76,10 +102,18 @@ async def run_scan(payload: ScanRequest) -> ScanResponse:
         raise HTTPException(status_code=400, detail="No usable name or username supplied")
 
     primary_slug = variants[0]
-    target_list = await targets.fetch_targets()
+
+    # Run official APIs + target fetching + control scan concurrently
+    target_list_coro = targets.fetch_all_targets()
+    official_api_coro = run_official_api_checks(primary_slug)
+    target_list, official_results = await asyncio.gather(
+        target_list_coro, official_api_coro
+    )
+
     user_id = get_or_create_user(raw_input)
     scan_id = create_scan(user_id)
 
+    # HTTP probe across all targets (WhatsMyName + Maigret)
     # TODO(remove): control scan only for temporary FPR diagnostics.
     results, control = await asyncio.gather(
         checker.check_username(primary_slug, target_list),
@@ -102,11 +136,15 @@ async def run_scan(payload: ScanRequest) -> ScanResponse:
     unreachable = sum(1 for r in results if r.unreachable)
     inconclusive = sum(1 for r in results if r.inconclusive)
 
+    # Count official API hits
+    official_hits = sum(1 for r in official_results.values() if r.exists)
+
     # TODO(remove): temporary statistics print.
     print(
         f"[SCAN-STATS] username={raw_input} slug={primary_slug} variants={sorted(set(used_variants))} "
         f"probed={probed} matches={len(matches)} core={core_matches} secondary={secondary_matches} "
         f"blocked={blocked} unreachable={unreachable} inconclusive={inconclusive} "
+        f"official_api_hits={official_hits} "
         f"detection_rate={(len(matches) / probed * 100) if probed else 0:.1f}%"
     )
     print(
@@ -127,4 +165,7 @@ async def run_scan(payload: ScanRequest) -> ScanResponse:
         blocked=blocked,
         unreachable=unreachable,
         inconclusive=inconclusive,
+        official_apis=[
+            _result_to_official_out(r) for r in official_results.values()
+        ],
     )

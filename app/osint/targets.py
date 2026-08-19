@@ -1,6 +1,7 @@
-"""WhatsMyName target list: fetch, cache, and parse wmn-data.json."""
+"""WhatsMyName + Maigret combined target list."""
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -8,6 +9,8 @@ from typing import Any
 import httpx
 
 from app import config
+
+logger = logging.getLogger(__name__)
 
 CORE_CATEGORIES = {
     "social",
@@ -108,3 +111,38 @@ async def fetch_targets(
             continue
         targets.append(target)
     return targets
+
+
+async def fetch_all_targets(
+    force: bool = False,
+    include_protected: bool | None = None,
+    include_maigret: bool = True,
+    maigret_max: int = 200,
+) -> list[Target]:
+    """Fetch and merge targets from WhatsMyName + Maigret.
+
+    WhatsMyName targets are loaded first (higher priority). Maigret targets
+    fill gaps — sites not already covered by WhatsMyName.
+    """
+    wmn_targets = await fetch_targets(force=force, include_protected=include_protected)
+    all_targets = list(wmn_targets)
+
+    if include_maigret:
+        try:
+            from app.osint.maigret_adapter import load_maigret_targets
+
+            wmn_names = {t.platform_name for t in wmn_targets}
+            maigret_targets = load_maigret_targets(
+                existing_names=wmn_names, max_sites=maigret_max
+            )
+            all_targets.extend(maigret_targets)
+            logger.info(
+                "Target merge: %d WhatsMyName + %d Maigret = %d total",
+                len(wmn_targets),
+                len(maigret_targets),
+                len(all_targets),
+            )
+        except Exception as exc:
+            logger.warning("Failed to load Maigret targets: %s", exc)
+
+    return all_targets
