@@ -152,3 +152,65 @@ def get_user_scans(user_id: int) -> list[sqlite3.Row]:
         return conn.execute(
             "SELECT * FROM scans WHERE user_id = ? ORDER BY id DESC", (user_id,)
         ).fetchall()
+
+
+def save_breach_result(
+    user_id: int, sha1_prefix: str, suffix_count: int, detected: bool
+) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO breaches (user_id, sha1_prefix, suffix_count, detected, checked_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, sha1_prefix, suffix_count, int(detected), _now()),
+        )
+
+
+def save_score(user_id: int, scan_id: int, score: int) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO scores (user_id, scan_id, score, created_at) VALUES (?, ?, ?, ?)",
+            (user_id, scan_id, score, _now()),
+        )
+
+
+def get_latest_score(user_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM scores WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        if row:
+            return dict(row)
+        return None
+
+
+def get_previous_detected_platforms(scan_id: int) -> set[str]:
+    """Get platform names detected in a previous scan (for reclamation)."""
+    with get_connection() as conn:
+        # Get the scan before this one for the same user
+        row = conn.execute(
+            "SELECT user_id FROM scans WHERE id = ?", (scan_id,)
+        ).fetchone()
+        if not row:
+            return set()
+        user_id = row["user_id"]
+        prev_row = conn.execute(
+            """
+            SELECT id FROM scans
+            WHERE user_id = ? AND id < ? AND status = 'completed'
+            ORDER BY id DESC LIMIT 1
+            """,
+            (user_id, scan_id),
+        ).fetchone()
+        if not prev_row:
+            return set()
+        rows = conn.execute(
+            """
+            SELECT platform_name FROM scan_results
+            WHERE scan_id = ? AND detected = 1
+            """,
+            (prev_row["id"],),
+        ).fetchall()
+        return {r["platform_name"] for r in rows}

@@ -8,11 +8,15 @@ from app.db.database import (
     create_scan,
     finish_scan,
     get_or_create_user,
+    get_previous_detected_platforms,
+    save_breach_result,
     save_scan_result,
+    save_score,
 )
 from app.osint import checker, slugs, targets
 from app.osint.control import run_control_scan
 from app.osint.official_apis import OfficialApiResult, run_official_api_checks
+from app.osint.score import calculate_score
 
 router = APIRouter(prefix="/api", tags=["scan"])
 
@@ -46,6 +50,8 @@ class ScanResponse(BaseModel):
     unreachable: int
     inconclusive: int
     official_apis: list[OfficialApiOut]
+    score: int
+    score_breakdown: dict
 
 
 async def _apply_fallback_passes(
@@ -139,6 +145,49 @@ async def run_scan(payload: ScanRequest) -> ScanResponse:
     # Count official API hits
     official_hits = sum(1 for r in official_results.values() if r.exists)
 
+    # Build detected platforms list for scoring
+    detected_platforms = [
+        {
+            "platform_name": r.target.platform_name,
+            "category": r.target.category,
+            "is_core": r.target.is_core,
+            "probed_url": r.requested_url,
+        }
+        for r in matches
+    ]
+
+    # Add official API detections as core platforms
+    for api_result in official_results.values():
+        if api_result.exists:
+            detected_platforms.append({
+                "platform_name": api_result.platform,
+                "category": "social",
+                "is_core": True,
+                "probed_url": api_result.profile_url or "",
+            })
+
+    # Check breach status (if previously checked)
+    from app.db.database import get_connection
+    with get_connection() as conn:
+        breach_row = conn.execute(
+            "SELECT detected FROM breaches WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+    breach_detected = bool(breach_row and breach_row["detected"])
+
+    # Get previous scan's detected platforms for reclamation
+    previous_detected = get_previous_detected_platforms(scan_id)
+
+    # Calculate score
+    score_result = calculate_score(
+        user_id=user_id,
+        scan_id=scan_id,
+        detected_platforms=detected_platforms,
+        breach_detected=breach_detected,
+        previous_detected=previous_detected,
+    )
+    save_score(user_id, scan_id, score_result.score)
+
     # TODO(remove): temporary statistics print.
     print(
         f"[SCAN-STATS] username={raw_input} slug={primary_slug} variants={sorted(set(used_variants))} "
@@ -168,4 +217,15 @@ async def run_scan(payload: ScanRequest) -> ScanResponse:
         official_apis=[
             _result_to_official_out(r) for r in official_results.values()
         ],
+        score=score_result.score,
+        score_breakdown={
+            "base": score_result.breakdown.base,
+            "core_accounts": score_result.breakdown.core_accounts,
+            "secondary_accounts": score_result.breakdown.secondary_accounts,
+            "breach_detected": score_result.breakdown.breach_detected,
+            "core_deduction": score_result.breakdown.core_deduction,
+            "secondary_deduction": score_result.breakdown.secondary_deduction,
+            "breach_deduction": score_result.breakdown.breach_deduction,
+            "reclaimed": score_result.breakdown.reclaimed,
+        },
     )
