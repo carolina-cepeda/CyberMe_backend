@@ -1,39 +1,39 @@
 <p align="center">
-  <h1 align="center">CiberMe</h1>
+  <h1 align="center">CyberMe</h1>
   <p align="center">
     <strong>Your digital footprint, your shield. A free OSINT tool that helps anyone measure and improve their online privacy.</strong>
   </p>
 </p>
 
 <p align="center">
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_ciberme-backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_ciberme-backend&metric=security_rating" alt="Security Rating">
+  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=security_rating" alt="Security Rating">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_ciberme-backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_ciberme-backend&metric=sqale_rating" alt="Maintainability Rating">
+  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=sqale_rating" alt="Maintainability Rating">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_ciberme-backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_ciberme-backend&metric=bugs" alt="Bugs">
+  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=bugs" alt="Bugs">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_ciberme-backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_ciberme-backend&metric=vulnerabilities" alt="Vulnerabilities">
+  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=vulnerabilities" alt="Vulnerabilities">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_ciberme-backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_ciberme-backend&metric=code_smells" alt="Code Smells">
+  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=code_smells" alt="Code Smells">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_ciberme-backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_ciberme-backend&metric=duplicated_lines_density" alt="Duplicated Lines">
+  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=duplicated_lines_density" alt="Duplicated Lines">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_ciberme-backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_ciberme-backend&metric=coverage" alt="Coverage">
+  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=coverage" alt="Coverage">
   </a>
 </p>
 
 ---
 
-## What is CiberMe?
+## What is CyberMe?
 
-**CiberMe** is an OSINT (Open Source Intelligence) tool built to bring digital security to everyone. You don't need to be a cybersecurity expert: enter a username and CiberMe scans **800+ platforms** to find where that person has registered accounts, checks whether their password has appeared in known data breaches, and calculates a **Privacy Health Score** -- a gamified rating (300-850) that measures how exposed your digital footprint is.
+**CyberMe** is an OSINT (Open Source Intelligence) tool built to bring digital security to everyone. You don't need to be a cybersecurity expert: enter a username and CyberMe scans **800+ platforms** to find where that person has registered accounts, checks whether their password has appeared in known data breaches, and calculates a **Privacy Health Score** -- a gamified rating (300-850) that measures how exposed your digital footprint is.
 
 **The mission:** make online privacy understandable and actionable for everyone, regardless of technical skill.
 
@@ -73,7 +73,7 @@
 
 ### Smart detection
 
-CiberMe doesn't just check if a URL returns 200. It combines **HTTP status codes** with **content markers** (unique strings present when an account exists vs. when it doesn't) to cut false positives from pages that return 200 for everyone:
+CyberMe doesn't just check if a URL returns 200. It combines **HTTP status codes** with **content markers** (unique strings present when an account exists vs. when it doesn't) to cut false positives from pages that return 200 for everyone:
 
 | Verdict | Meaning |
 |---------|---------|
@@ -129,7 +129,7 @@ backend/
 
 ## Database
 
-CiberMe uses **SQLite** stored at `backend/ciberme.db`. The persistence layer (`app/db/database.py`) manages five tables:
+CyberMe uses **SQLite** stored at `backend/ciberme.db`. The persistence layer (`app/db/database.py`) manages five tables:
 
 ```
 users ------+-- scans ---------- scan_results
