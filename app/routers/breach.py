@@ -1,7 +1,11 @@
 """Breach check, scoring, and reclamation endpoints."""
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+import re
+
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field, field_validator
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.db.database import (
     get_or_create_user,
@@ -15,19 +19,34 @@ from app.osint.score import ScanScore, calculate_score
 from curl_cffi.requests import AsyncSession
 
 router = APIRouter(prefix="/api", tags=["breach"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 # --- Request / Response models ---
 
+_USERNAME_RE = re.compile(r"^[a-zA-Z0-9._@-]{3,64}$")
+
+
 class BreachCheckRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=3, max_length=64)
+    password: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        v = v.strip()
+        if not _USERNAME_RE.match(v):
+            raise ValueError(
+                "Username must be 3-64 chars, alphanumeric with . _ @ - only"
+            )
+        return v
 
 
 class BreachCheckResponse(BaseModel):
     breached: bool
     count: int
     message: str
+    error: bool = False
 
 
 class ScoreResponse(BaseModel):
@@ -45,9 +64,26 @@ class ScoreResponse(BaseModel):
 
 
 class VerifyRequest(BaseModel):
-    username: str
-    platform_name: str
-    probed_url: str
+    username: str = Field(..., min_length=3, max_length=64)
+    platform_name: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        v = v.strip()
+        if not _USERNAME_RE.match(v):
+            raise ValueError(
+                "Username must be 3-64 chars, alphanumeric with . _ @ - only"
+            )
+        return v
+
+    @field_validator("platform_name")
+    @classmethod
+    def sanitize_platform(cls, v: str) -> str:
+        v = v.strip()
+        if not v or len(v) > 128:
+            raise ValueError("Platform name must be 1-128 characters")
+        return v
 
 
 class VerifyResponse(BaseModel):
@@ -60,7 +96,8 @@ class VerifyResponse(BaseModel):
 # --- Endpoints ---
 
 @router.post("/breach", response_model=BreachCheckResponse)
-async def breach_check(payload: BreachCheckRequest) -> BreachCheckResponse:
+@limiter.limit("10/minute")
+async def breach_check(request: Request, payload: BreachCheckRequest) -> BreachCheckResponse:
     """Check if a password has appeared in known data breaches.
 
     Uses HIBP Pwned Passwords k-anonymity API.
@@ -72,6 +109,12 @@ async def breach_check(payload: BreachCheckRequest) -> BreachCheckResponse:
 
     async with AsyncSession(impersonate="chrome124") as client:
         result = await check_password_breach(client, payload.password)
+
+    if result.error:
+        raise HTTPException(
+            status_code=503,
+            detail="Breach check service unavailable. Please try again later.",
+        )
 
     user_id = get_or_create_user(payload.username)
     save_breach_result(
@@ -165,7 +208,8 @@ async def get_score(username: str) -> ScoreResponse:
 
 
 @router.post("/verify", response_model=VerifyResponse)
-async def verify_platform(payload: VerifyRequest) -> VerifyResponse:
+@limiter.limit("10/minute")
+async def verify_platform(request: Request, payload: VerifyRequest) -> VerifyResponse:
     """Re-verify a specific platform to check if an account still exists.
 
     If the platform returns NOT_FOUND, the previously deducted points
@@ -187,11 +231,14 @@ async def verify_platform(payload: VerifyRequest) -> VerifyResponse:
     if target is None:
         raise HTTPException(status_code=404, detail="Platform not found in targets")
 
-    # Probe the URL
+    # Build URL from target template (never use user-supplied URLs — SSRF prevention)
+    from app.osint.checker import _build_url
+    probe_url = _build_url(target, payload.username)
+
     async with AsyncSession(impersonate="chrome124") as client:
         try:
             resp = await client.get(
-                payload.probed_url,
+                probe_url,
                 headers=target.request_headers or None,
                 impersonate="chrome124",
                 allow_redirects=True,

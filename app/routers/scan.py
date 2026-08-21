@@ -1,9 +1,15 @@
 import asyncio
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+import re
+
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field, field_validator
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app import config
+
+limiter = Limiter(key_func=get_remote_address)
 from app.db.database import (
     create_scan,
     finish_scan,
@@ -21,9 +27,22 @@ from app.osint.score import calculate_score
 router = APIRouter(prefix="/api", tags=["scan"])
 
 
+_USERNAME_RE = re.compile(r"^[a-zA-Z0-9._@-]{3,64}$")
+
+
 class ScanRequest(BaseModel):
-    username: str
+    username: str = Field(..., min_length=3, max_length=64)
     expand_names: bool = False
+
+    @field_validator("username")
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        v = v.strip()
+        if not _USERNAME_RE.match(v):
+            raise ValueError(
+                "Username must be 3-64 chars, alphanumeric with . _ @ - only"
+            )
+        return v
 
 
 class OfficialApiOut(BaseModel):
@@ -93,7 +112,8 @@ def _result_to_official_out(r: OfficialApiResult) -> OfficialApiOut:
 
 
 @router.post("/scan", response_model=ScanResponse)
-async def run_scan(payload: ScanRequest) -> ScanResponse:
+@limiter.limit("5/minute")
+async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
     raw_input = payload.username.strip()
     if not raw_input or len(raw_input) < 3:
         raise HTTPException(status_code=400, detail="Username must be at least 3 characters")

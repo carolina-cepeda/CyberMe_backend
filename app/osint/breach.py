@@ -24,6 +24,7 @@ class BreachCheckResult:
     count: int  # How many times this password appeared in breaches
     prefix: str
     suffix: str
+    error: bool = False  # True when HIBP API was unreachable or returned an error
 
 
 async def check_password_breach(
@@ -66,10 +67,10 @@ async def check_password_breach(
             )
         logger.warning("HIBP API returned status %d", resp.status_code)
         return BreachCheckResult(
-            breached=False, count=0, prefix=prefix, suffix=suffix
+            breached=False, count=0, prefix=prefix, suffix=suffix, error=True
         )
     except RequestsError as exc:
         logger.error("HIBP API error: %s", exc)
         return BreachCheckResult(
-            breached=False, count=0, prefix=prefix, suffix=suffix
+            breached=False, count=0, prefix=prefix, suffix=suffix, error=True
         )

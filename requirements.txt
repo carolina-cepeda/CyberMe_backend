@@ -3,3 +3,4 @@ uvicorn[standard]
 httpx
 curl_cffi
 maigret
+slowapi
