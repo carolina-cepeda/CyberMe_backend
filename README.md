@@ -6,26 +6,26 @@
 </p>
 
 <p align="center">
-  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=security_rating" alt="Security Rating">
+  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=security_rating" alt="Security Rating">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=sqale_rating" alt="Maintainability Rating">
+  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=sqale_rating" alt="Maintainability Rating">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=bugs" alt="Bugs">
+  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=bugs" alt="Bugs">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=vulnerabilities" alt="Vulnerabilities">
+  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=vulnerabilities" alt="Vulnerabilities">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=code_smells" alt="Code Smells">
+  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=code_smells" alt="Code Smells">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=duplicated_lines_density" alt="Duplicated Lines">
+  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=duplicated_lines_density" alt="Duplicated Lines">
   </a>
-  <a href="https://sonarcloud.io/dashboard?id=CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=CyberMe_backend&metric=coverage" alt="Coverage">
+  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
+    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=coverage" alt="Coverage">
   </a>
 </p>
 
@@ -206,8 +206,8 @@ curl -X POST http://localhost:8000/api/breach \
 
 ```bash
 # Clone the repository
-git clone https://github.com/carolina-cepeda/CyberMe_backend.git
-cd CyberMe_backend
+git clone https://github.com/carolina-cepeda/carolina-cepeda_CyberMe_backend.git
+cd carolina-cepeda_CyberMe_backend
 
 # Create virtual environment
 python -m venv .venv
