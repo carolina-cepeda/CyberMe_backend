@@ -1,5 +1,5 @@
 import asyncio
-
+import logging
 import re
 
 from fastapi import APIRouter, HTTPException, Request
@@ -15,7 +15,6 @@ from app.db.database import (
     finish_scan,
     get_or_create_user,
     get_previous_detected_platforms,
-    save_breach_result,
     save_scan_result,
     save_score,
 )
@@ -25,6 +24,7 @@ from app.osint.official_apis import OfficialApiResult, run_official_api_checks
 from app.osint.score import calculate_score
 
 router = APIRouter(prefix="/api", tags=["scan"])
+logger = logging.getLogger(__name__)
 
 
 _USERNAME_RE = re.compile(r"^[a-zA-Z0-9._@-]{3,64}$")
@@ -208,18 +208,23 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
     )
     save_score(user_id, scan_id, score_result.score)
 
-    # TODO(remove): temporary statistics print.
-    print(
-        f"[SCAN-STATS] username={raw_input} slug={primary_slug} variants={sorted(set(used_variants))} "
-        f"probed={probed} matches={len(matches)} core={core_matches} secondary={secondary_matches} "
-        f"blocked={blocked} unreachable={unreachable} inconclusive={inconclusive} "
-        f"official_api_hits={official_hits} "
-        f"detection_rate={(len(matches) / probed * 100) if probed else 0:.1f}%"
+    # TODO(remove): temporary statistics logging.
+    logger.info(
+        "[SCAN-STATS] username=%s slug=%s variants=%s "
+        "probed=%d matches=%d core=%d secondary=%d "
+        "blocked=%d unreachable=%d inconclusive=%d "
+        "official_api_hits=%d "
+        "detection_rate=%.1f%%",
+        raw_input, primary_slug, sorted(set(used_variants)),
+        probed, len(matches), core_matches, secondary_matches,
+        blocked, unreachable, inconclusive,
+        official_hits,
+        (len(matches) / probed * 100) if probed else 0,
     )
-    print(
-        f"[SCAN-STATS] FPR: control={control.control_username} "
-        f"probed={control.probed} fp={control.false_positives} "
-        f"fpr={control.fpr * 100:.1f}%"
+    logger.info(
+        "[SCAN-STATS] FPR: control=%s probed=%d fp=%d fpr=%.1f%%",
+        control.control_username, control.probed, control.false_positives,
+        control.fpr * 100,
     )
 
     return ScanResponse(

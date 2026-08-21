@@ -15,8 +15,9 @@ from app.db.database import (
     save_score,
 )
 from app.osint.breach import check_password_breach
-from app.osint.score import ScanScore, calculate_score
+from app.osint.score import calculate_score
 from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.errors import RequestsError
 
 router = APIRouter(prefix="/api", tags=["breach"])
 limiter = Limiter(key_func=get_remote_address)
@@ -232,7 +233,6 @@ async def verify_platform(request: Request, payload: VerifyRequest) -> VerifyRes
         raise HTTPException(status_code=404, detail="Platform not found in targets")
 
     # Build URL from target template (never use user-supplied URLs — SSRF prevention)
-    from app.osint.checker import _build_url
     probe_url = _build_url(target, payload.username)
 
     async with AsyncSession(impersonate="chrome124") as client:
@@ -247,7 +247,7 @@ async def verify_platform(request: Request, payload: VerifyRequest) -> VerifyRes
             verdict, _, _, _ = classify_response(
                 first_hop, resp.status_code, resp.text, target
             )
-        except Exception:
+        except RequestsError:
             verdict = Verdict.UNREACHABLE
 
     reclaimed = 0

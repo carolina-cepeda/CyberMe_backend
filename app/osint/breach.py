@@ -40,7 +40,7 @@ async def check_password_breach(
 
     The actual password (or even its full hash) never leaves the client.
     """
-    sha1 = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
+    sha1 = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()  # noqa: S324 – HIBP k-anonymity requires SHA-1
     prefix = sha1[:5]
     suffix = sha1[5:]
 
