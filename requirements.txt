@@ -1,6 +1,6 @@
-fastapi
-uvicorn[standard]
-httpx
-curl_cffi
-maigret
-slowapi
+fastapi==0.141.1
+uvicorn==0.52.1
+httpx==0.28.1
+curl_cffi==0.16.0
+maigret==0.6.4
+slowapi==0.1.10
