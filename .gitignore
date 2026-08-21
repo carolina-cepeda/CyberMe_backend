@@ -32,6 +32,10 @@ logs/
 .DS_Store
 Thumbs.db
 
+# SonarQube / SonarCloud
+.sonar/
+.scannerwork/
+
 # Editor / IDE
 .vscode/
 .idea/
