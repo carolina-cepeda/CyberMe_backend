@@ -8,7 +8,6 @@ as a distinct `blocked` verdict.
 
 import asyncio
 import logging
-import secrets
 from dataclasses import dataclass
 from enum import Enum
 from urllib.parse import urlsplit
@@ -55,11 +54,6 @@ class ProbeResult:
     @property
     def inconclusive(self) -> bool:
         return self.verdict is Verdict.INCONCLUSIVE
-
-
-# TODO(remove): temporary control username for FPR estimation diagnostics.
-def generate_control_username() -> str:
-    return "cbm_" + secrets.token_hex(8)
 
 
 def _build_url(target: Target, username: str) -> str:

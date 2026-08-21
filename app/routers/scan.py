@@ -19,7 +19,6 @@ from app.db.database import (
     save_score,
 )
 from app.osint import checker, slugs, targets
-from app.osint.control import run_control_scan
 from app.osint.official_apis import OfficialApiResult, run_official_api_checks
 from app.osint.score import calculate_score
 
@@ -129,7 +128,7 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
 
     primary_slug = variants[0]
 
-    # Run official APIs + target fetching + control scan concurrently
+    # Run official APIs + target fetching concurrently
     target_list_coro = targets.fetch_all_targets()
     official_api_coro = run_official_api_checks(primary_slug)
     target_list, official_results = await asyncio.gather(
@@ -140,11 +139,7 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
     scan_id = create_scan(user_id)
 
     # HTTP probe across all targets (WhatsMyName + Maigret)
-    # TODO(remove): control scan only for temporary FPR diagnostics.
-    results, control = await asyncio.gather(
-        checker.check_username(primary_slug, target_list),
-        run_control_scan(target_list),
-    )
+    results = await checker.check_username(primary_slug, target_list)
     used_variants = [primary_slug] * len(results)
     await _apply_fallback_passes(results, variants, used_variants)
 
@@ -161,9 +156,6 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
     blocked = sum(1 for r in results if r.blocked)
     unreachable = sum(1 for r in results if r.unreachable)
     inconclusive = sum(1 for r in results if r.inconclusive)
-
-    # Count official API hits
-    official_hits = sum(1 for r in official_results.values() if r.exists)
 
     # Build detected platforms list for scoring
     detected_platforms = [
@@ -207,25 +199,6 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
         previous_detected=previous_detected,
     )
     save_score(user_id, scan_id, score_result.score)
-
-    # TODO(remove): temporary statistics logging.
-    logger.info(
-        "[SCAN-STATS] username=%s slug=%s variants=%s "
-        "probed=%d matches=%d core=%d secondary=%d "
-        "blocked=%d unreachable=%d inconclusive=%d "
-        "official_api_hits=%d "
-        "detection_rate=%.1f%%",
-        raw_input, primary_slug, sorted(set(used_variants)),
-        probed, len(matches), core_matches, secondary_matches,
-        blocked, unreachable, inconclusive,
-        official_hits,
-        (len(matches) / probed * 100) if probed else 0,
-    )
-    logger.info(
-        "[SCAN-STATS] FPR: control=%s probed=%d fp=%d fpr=%.1f%%",
-        control.control_username, control.probed, control.false_positives,
-        control.fpr * 100,
-    )
 
     return ScanResponse(
         scan_id=scan_id,
