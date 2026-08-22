@@ -5,29 +5,15 @@
   </p>
 </p>
 
-<p align="center">
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=security_rating" alt="Security Rating">
-  </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=sqale_rating" alt="Maintainability Rating">
-  </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=bugs" alt="Bugs">
-  </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=vulnerabilities" alt="Vulnerabilities">
-  </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=code_smells" alt="Code Smells">
-  </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=duplicated_lines_density" alt="Duplicated Lines">
-  </a>
-  <a href="https://sonarcloud.io/dashboard?id=carolina-cepeda_CyberMe_backend">
-    <img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=coverage" alt="Coverage">
-  </a>
-</p>
+[![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=alert_status&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
+
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=bugs&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
+
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=code_smells&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
+
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=coverage&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
+
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=duplicated_lines_density&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
 
 ---
 
