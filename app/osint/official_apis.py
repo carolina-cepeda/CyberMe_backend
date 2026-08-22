@@ -42,7 +42,7 @@ async def check_github(
             url,
             headers={
                 "Accept": "application/vnd.github.v3+json",
-                "User-Agent": "CiberMe/0.1",
+                "User-Agent": "CyberMe/0.1",
             },
             impersonate="chrome124",
             timeout=10.0,
@@ -88,7 +88,7 @@ async def check_reddit(
         resp = await client.get(
             url,
             headers={
-                "User-Agent": "CiberMe/0.1 (+https://github.com/)",
+                "User-Agent": "CyberMe/0.1 (+https://github.com/)",
             },
             impersonate="chrome124",
             timeout=10.0,
@@ -135,7 +135,7 @@ async def check_gitlab(
     try:
         resp = await client.get(
             url,
-            headers={"User-Agent": "CiberMe/0.1"},
+            headers={"User-Agent": "CyberMe/0.1"},
             impersonate="chrome124",
             timeout=10.0,
         )

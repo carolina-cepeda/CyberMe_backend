@@ -1,4 +1,4 @@
-# CiberMe Glossary
+# CyberMe Glossary
 
 Maps the raw WhatsMyName JSON field names and the app's variables to the descriptive names used in the code, so every term is self-explanatory.
 

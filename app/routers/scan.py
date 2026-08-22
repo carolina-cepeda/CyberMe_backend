@@ -55,6 +55,15 @@ class OfficialApiOut(BaseModel):
     extra: dict | None = None
 
 
+class DetectedPlatform(BaseModel):
+    platform_name: str
+    category: str
+    is_core: bool
+    probed_url: str
+    verdict: str
+    not_mine: bool = False
+
+
 class ScanResponse(BaseModel):
     scan_id: int
     username: str
@@ -68,6 +77,7 @@ class ScanResponse(BaseModel):
     unreachable: int
     inconclusive: int
     official_apis: list[OfficialApiOut]
+    detected_platforms: list[DetectedPlatform]
     score: int
     score_breakdown: dict
 
@@ -204,6 +214,29 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
     )
     save_score(user_id, scan_id, score_result.score)
 
+    # Build detected platforms list for response
+    detected_out = [
+        DetectedPlatform(
+            platform_name=r.target.platform_name,
+            category=r.target.category,
+            is_core=r.target.is_core,
+            probed_url=r.requested_url,
+            verdict=r.verdict.value,
+        )
+        for r in matches
+    ]
+    for api_result in official_results.values():
+        if api_result.exists:
+            detected_out.append(
+                DetectedPlatform(
+                    platform_name=api_result.platform,
+                    category="social",
+                    is_core=True,
+                    probed_url=api_result.profile_url or "",
+                    verdict="detected",
+                )
+            )
+
     return ScanResponse(
         scan_id=scan_id,
         username=raw_input,
@@ -219,6 +252,7 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
         official_apis=[
             _result_to_official_out(r) for r in official_results.values()
         ],
+        detected_platforms=detected_out,
         score=score_result.score,
         score_breakdown={
             "base": score_result.breakdown.base,
@@ -229,5 +263,9 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
             "secondary_deduction": score_result.breakdown.secondary_deduction,
             "breach_deduction": score_result.breakdown.breach_deduction,
             "reclaimed": score_result.breakdown.reclaimed,
+            "base_score": 850,
+            "min_score": 300,
+            "deduction_core": 30,
+            "deduction_secondary": 15,
         },
     )

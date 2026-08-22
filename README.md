@@ -113,7 +113,7 @@ backend/
 
 ## Database
 
-CyberMe uses **SQLite** stored at `backend/ciberme.db`. The persistence layer (`app/db/database.py`) manages five tables:
+CyberMe uses **SQLite** stored at `backend/cyberme.db`. The persistence layer (`app/db/database.py`) manages five tables:
 
 ```
 users ------+-- scans ---------- scan_results

@@ -2,7 +2,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = BASE_DIR / ".env"
-DB_PATH = BASE_DIR / "ciberme.db"
+DB_PATH = BASE_DIR / "cyberme.db"
 
 DEFAULT_TARGETS_URL = (
     "https://raw.githubusercontent.com/WebBreacher/WhatsMyName/main/wmn-data.json"

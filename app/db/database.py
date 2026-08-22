@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS scan_results (
     miss_marker_matched INTEGER,
     category TEXT NOT NULL,
     is_core INTEGER NOT NULL DEFAULT 0,
+    not_mine INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (scan_id) REFERENCES scans(id)
 );
 
@@ -81,6 +82,11 @@ def get_connection() -> sqlite3.Connection:
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
+        # Migration: add not_mine column to existing databases
+        try:
+            conn.execute("ALTER TABLE scan_results ADD COLUMN not_mine INTEGER NOT NULL DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
 
 def get_or_create_user(username: str) -> int:
@@ -209,8 +215,35 @@ def get_previous_detected_platforms(scan_id: int) -> set[str]:
         rows = conn.execute(
             """
             SELECT platform_name FROM scan_results
-            WHERE scan_id = ? AND detected = 1
+            WHERE scan_id = ? AND detected = 1 AND not_mine = 0
             """,
             (prev_row["id"],),
         ).fetchall()
         return {r["platform_name"] for r in rows}
+
+
+def mark_not_mine(user_id: int, platform_name: str) -> bool:
+    """Mark a detected platform as not belonging to the user.
+
+    Returns True if a row was updated.
+    """
+    with get_connection() as conn:
+        # Find the latest completed scan for this user
+        scan = conn.execute(
+            """
+            SELECT id FROM scans
+            WHERE user_id = ? AND status = 'completed'
+            ORDER BY id DESC LIMIT 1
+            """,
+            (user_id,),
+        ).fetchone()
+        if not scan:
+            return False
+        cur = conn.execute(
+            """
+            UPDATE scan_results SET not_mine = 1
+            WHERE scan_id = ? AND platform_name = ? AND detected = 1
+            """,
+            (scan["id"], platform_name),
+        )
+        return cur.rowcount > 0

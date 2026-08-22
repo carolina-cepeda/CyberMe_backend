@@ -11,6 +11,7 @@ from app.db.database import (
     get_or_create_user,
     get_previous_detected_platforms,
     get_user_scans,
+    mark_not_mine,
     save_breach_result,
     save_score,
 )
@@ -62,6 +63,10 @@ class ScoreResponse(BaseModel):
     breach_deduction: int
     reclaimed: int
     matches: int
+    base_score: int = 850
+    min_score: int = 300
+    deduction_core: int = 30
+    deduction_secondary: int = 15
 
 
 class VerifyRequest(BaseModel):
@@ -92,6 +97,35 @@ class VerifyResponse(BaseModel):
     platform_name: str
     message: str
     reclaimed_points: int
+
+
+class NotMineRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=64)
+    platform_name: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def sanitize_username(cls, v: str) -> str:
+        v = v.strip()
+        if not _USERNAME_RE.match(v):
+            raise ValueError(
+                "Username must be 3-64 chars, alphanumeric with . _ @ - only"
+            )
+        return v
+
+    @field_validator("platform_name")
+    @classmethod
+    def sanitize_platform(cls, v: str) -> str:
+        v = v.strip()
+        if not v or len(v) > 128:
+            raise ValueError("Platform name must be 1-128 characters")
+        return v
+
+
+class NotMineResponse(BaseModel):
+    success: bool
+    platform_name: str
+    score: int
 
 
 # --- Endpoints ---
@@ -172,7 +206,7 @@ async def get_score(username: str) -> ScoreResponse:
         rows = conn.execute(
             """
             SELECT platform_name, category, is_core, probed_url
-            FROM scan_results WHERE scan_id = ? AND detected = 1
+            FROM scan_results WHERE scan_id = ? AND detected = 1 AND not_mine = 0
             """,
             (scan_id,),
         ).fetchall()
@@ -317,4 +351,60 @@ async def verify_platform(request: Request, payload: VerifyRequest) -> VerifyRes
         platform_name=payload.platform_name,
         message=f"Account {'still exists' if verdict is Verdict.DETECTED else 'not found'} on {payload.platform_name}",
         reclaimed_points=reclaimed,
+    )
+
+
+@router.post(
+    "/not-mine",
+    response_model=NotMineResponse,
+    responses={404: {"description": "Platform not found in latest scan"}},
+)
+@limiter.limit("10/minute")
+async def not_mine(request: Request, payload: NotMineRequest) -> NotMineResponse:
+    """Mark a detected platform as not belonging to the user.
+
+    Excludes the platform from score calculations and recalculates.
+    """
+    user_id = get_or_create_user(payload.username)
+    updated = mark_not_mine(user_id, payload.platform_name)
+
+    if not updated:
+        raise HTTPException(
+            status_code=404,
+            detail="Platform not found or not detected in latest scan",
+        )
+
+    # Recalculate score
+    from app.db.database import get_connection
+    scans = get_user_scans(user_id)
+    score_result = None
+    if scans:
+        scan_id = scans[0]["id"]
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT platform_name, category, is_core, probed_url
+                FROM scan_results WHERE scan_id = ? AND detected = 1 AND not_mine = 0
+                """,
+                (scan_id,),
+            ).fetchall()
+        detected = [dict(r) for r in rows]
+        with get_connection() as conn:
+            breach_row = conn.execute(
+                "SELECT detected FROM breaches WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+                (user_id,),
+            ).fetchone()
+        breach = bool(breach_row and breach_row["detected"])
+        previous = get_previous_detected_platforms(scan_id)
+        score_result = calculate_score(
+            user_id=user_id, scan_id=scan_id,
+            detected_platforms=detected, breach_detected=breach,
+            previous_detected=previous,
+        )
+        save_score(user_id, scan_id, score_result.score)
+
+    return NotMineResponse(
+        success=True,
+        platform_name=payload.platform_name,
+        score=score_result.score if score_result else 0,
     )

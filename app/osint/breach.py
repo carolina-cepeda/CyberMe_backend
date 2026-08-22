@@ -46,7 +46,7 @@ async def check_password_breach(
     try:
         resp = await client.get(
             url,
-            headers={"User-Agent": "CiberMe/0.1"},
+            headers={"User-Agent": "CyberMe/0.1"},
             impersonate="chrome124",
             timeout=10.0,
         )

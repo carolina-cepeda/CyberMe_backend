@@ -198,6 +198,6 @@ async def check_username(
 
     async with AsyncSession(
         timeout=timeout,
-        headers={"User-Agent": "CiberMe/0.1 (+https://github.com/)"},
+        headers={"User-Agent": "CyberMe/0.1 (+https://github.com/)"},
     ) as client:
         return await asyncio.gather(*(limited(t) for t in targets))

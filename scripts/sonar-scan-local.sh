@@ -19,7 +19,7 @@ BACKEND_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "Using sonar-scanner via Docker"
 echo "SonarQube host:     $SONAR_HOST"
-echo "Project:            ciberme-backend"
+echo "Project:            cyberme-backend"
 echo ""
 
 docker run --rm \
@@ -30,4 +30,4 @@ docker run --rm \
   -Dsonar.login="$SONAR_TOKEN"
 
 echo ""
-echo "Analysis complete. View results at: $SONAR_HOST/dashboard?id=ciberme-backend"
+echo "Analysis complete. View results at: $SONAR_HOST/dashboard?id=cyberme-backend"
