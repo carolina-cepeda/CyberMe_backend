@@ -102,15 +102,8 @@ def _convert_site(name: str, site: dict) -> Target | None:
     if not exists_marker:
         return None
 
-    # Determine status codes based on checkType
-    check_type = site.get("checkType", "message")
-    if check_type == "status_code":
-        exists_status_code = 200
-        miss_status_code = None
-    else:
-        # message, response_url, none → rely on content markers
-        exists_status_code = 200
-        miss_status_code = None
+    exists_status_code = 200
+    miss_status_code = None
 
     # Category from tags
     tags = site.get("tags") or []

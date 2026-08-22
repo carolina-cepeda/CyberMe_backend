@@ -67,7 +67,7 @@ async def check_password_breach(
         return BreachCheckResult(
             breached=False, count=0, prefix=prefix, suffix=suffix, error=True
         )
-    except RequestsError as exc:
+    except RequestsError:
         logging.exception("HIBP API error")
         return BreachCheckResult(
             breached=False, count=0, prefix=prefix, suffix=suffix, error=True

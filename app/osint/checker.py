@@ -77,12 +77,15 @@ def classify_response(
     exists_marker_matched = bool(target.exists_marker) and target.exists_marker in body
     miss_marker_matched = bool(target.miss_marker) and target.miss_marker in body
 
+    def _result(verdict: Verdict, reason: str | None = None):
+        return verdict, exists_marker_matched, miss_marker_matched, reason
+
     if first_hop_status is None:
-        return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "request_error"
+        return _result(Verdict.INCONCLUSIVE, "request_error")
     if target.is_protected:
-        return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "protected"
+        return _result(Verdict.INCONCLUSIVE, "protected")
     if miss_marker_matched:
-        return Verdict.NOT_FOUND, exists_marker_matched, miss_marker_matched, "miss_marker"
+        return _result(Verdict.NOT_FOUND, "miss_marker")
 
     exists_status_match = (
         first_hop_status == target.exists_status_code
@@ -97,21 +100,22 @@ def classify_response(
     )
 
     if miss_status_match and not exists_status_match:
-        return Verdict.NOT_FOUND, exists_marker_matched, miss_marker_matched, "miss_status"
-    if (
+        return _result(Verdict.NOT_FOUND, "miss_status")
+    marker_missing = (
         exists_status_match
         and require_exists_marker
         and target.exists_marker
         and not exists_marker_matched
-    ):
-        return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "exists_marker_absent"
+    )
+    if marker_missing:
+        return _result(Verdict.INCONCLUSIVE, "exists_marker_absent")
     if exists_status_match:
-        return Verdict.DETECTED, exists_marker_matched, miss_marker_matched, None
+        return _result(Verdict.DETECTED)
     if final_status in (404, 410) and target.exists_status_code not in (404, 410):
-        return Verdict.NOT_FOUND, exists_marker_matched, miss_marker_matched, "not_found_status"
+        return _result(Verdict.NOT_FOUND, "not_found_status")
     if first_hop_status in (403,) or final_status in (403,):
-        return Verdict.BLOCKED, exists_marker_matched, miss_marker_matched, "bot_blocked"
-    return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "unexpected_status"
+        return _result(Verdict.BLOCKED, "bot_blocked")
+    return _result(Verdict.INCONCLUSIVE, "unexpected_status")
 
 
 async def _probe_one(
