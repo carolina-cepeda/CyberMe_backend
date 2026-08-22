@@ -96,7 +96,14 @@ class VerifyResponse(BaseModel):
 
 # --- Endpoints ---
 
-@router.post("/breach", response_model=BreachCheckResponse)
+@router.post(
+    "/breach",
+    response_model=BreachCheckResponse,
+    responses={
+        400: {"description": "Validation error (missing password)"},
+        503: {"description": "Breach check service unavailable"},
+    },
+)
 @limiter.limit("10/minute")
 async def breach_check(request: Request, payload: BreachCheckRequest) -> BreachCheckResponse:
     """Check if a password has appeared in known data breaches.
@@ -137,7 +144,11 @@ async def breach_check(request: Request, payload: BreachCheckRequest) -> BreachC
     )
 
 
-@router.get("/score/{username}", response_model=ScoreResponse)
+@router.get(
+    "/score/{username}",
+    response_model=ScoreResponse,
+    responses={404: {"description": "No scans found for this user"}},
+)
 async def get_score(username: str) -> ScoreResponse:
     """Get the current Privacy Health Score for a user.
 
@@ -208,7 +219,11 @@ async def get_score(username: str) -> ScoreResponse:
     )
 
 
-@router.post("/verify", response_model=VerifyResponse)
+@router.post(
+    "/verify",
+    response_model=VerifyResponse,
+    responses={404: {"description": "Platform not found in targets"}},
+)
 @limiter.limit("10/minute")
 async def verify_platform(request: Request, payload: VerifyRequest) -> VerifyResponse:
     """Re-verify a specific platform to check if an account still exists.

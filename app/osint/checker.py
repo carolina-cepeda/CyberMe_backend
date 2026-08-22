@@ -98,14 +98,14 @@ def classify_response(
 
     if miss_status_match and not exists_status_match:
         return Verdict.NOT_FOUND, exists_marker_matched, miss_marker_matched, "miss_status"
+    if (
+        exists_status_match
+        and require_exists_marker
+        and target.exists_marker
+        and not exists_marker_matched
+    ):
+        return Verdict.INCONCLUSIVE, exists_marker_matched, miss_marker_matched, "exists_marker_absent"
     if exists_status_match:
-        if require_exists_marker and target.exists_marker and not exists_marker_matched:
-            return (
-                Verdict.INCONCLUSIVE,
-                exists_marker_matched,
-                miss_marker_matched,
-                "exists_marker_absent",
-            )
         return Verdict.DETECTED, exists_marker_matched, miss_marker_matched, None
     if final_status in (404, 410) and target.exists_status_code not in (404, 410):
         return Verdict.NOT_FOUND, exists_marker_matched, miss_marker_matched, "not_found_status"

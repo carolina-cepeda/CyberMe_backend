@@ -110,7 +110,11 @@ def _result_to_official_out(r: OfficialApiResult) -> OfficialApiOut:
     )
 
 
-@router.post("/scan", response_model=ScanResponse)
+@router.post(
+    "/scan",
+    response_model=ScanResponse,
+    responses={400: {"description": "Validation error (username too short or empty)"}},
+)
 @limiter.limit("5/minute")
 async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
     raw_input = payload.username.strip()

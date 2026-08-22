@@ -12,8 +12,6 @@ from dataclasses import dataclass
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.errors import RequestsError
 
-logger = logging.getLogger(__name__)
-
 _HIBP_URL = "https://api.pwnedpasswords.com/range/{prefix}"
 
 
@@ -65,12 +63,12 @@ async def check_password_breach(
             return BreachCheckResult(
                 breached=False, count=0, prefix=prefix, suffix=suffix
             )
-        logger.warning("HIBP API returned status %d", resp.status_code)
+        logging.warning("HIBP API returned status %d", resp.status_code)
         return BreachCheckResult(
             breached=False, count=0, prefix=prefix, suffix=suffix, error=True
         )
     except RequestsError as exc:
-        logger.error("HIBP API error: %s", exc)
+        logging.exception("HIBP API error")
         return BreachCheckResult(
             breached=False, count=0, prefix=prefix, suffix=suffix, error=True
         )

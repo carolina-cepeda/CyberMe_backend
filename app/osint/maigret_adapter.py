@@ -13,6 +13,8 @@ from app.osint.targets import Target
 
 logger = logging.getLogger(__name__)
 
+_MAIGRET_PLACEHOLDER = "{username}"
+
 # Path to Maigret's bundled data.json
 _MAIGRET_DATA_PATH = (
     Path(__file__).resolve().parent.parent.parent
@@ -83,11 +85,11 @@ def _convert_site(name: str, site: dict) -> Target | None:
     """Convert a single Maigret site dict to our Target dataclass."""
     # Determine probe URL
     probe_url = site.get("urlProbe") or site.get("url") or ""
-    if not probe_url or "{username}" not in probe_url:
+    if not probe_url or _MAIGRET_PLACEHOLDER not in probe_url:
         return None
 
     # Convert placeholder: Maigret uses {username}, we use {account}
-    probe_url = probe_url.replace("{username}", "{account}")
+    probe_url = probe_url.replace(_MAIGRET_PLACEHOLDER, "{account}")
 
     # Detection markers
     presense = site.get("presenseStrs") or []
