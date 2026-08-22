@@ -9,7 +9,9 @@ from app.db.database import get_or_create_user
 
 def _starlette_request():
     scope = {"type": "http", "method": "POST", "path": "/", "headers": []}
-    return Request(scope)
+    req = Request(scope)
+    req.state.view_rate_limit = None
+    return req
 
 
 def _make_fake_result(platform_name="GitHub", is_core=True):
@@ -163,3 +165,73 @@ async def test_apply_fallback_passes():
 
     assert results[0].verdict is Verdict.DETECTED
     assert used[0] == "fallback"
+
+
+@pytest.mark.asyncio
+@patch("app.routers.scan.run_official_api_checks", new_callable=AsyncMock)
+@patch("app.routers.scan.targets")
+@patch("app.routers.scan.checker")
+async def test_run_scan_detected_platforms_in_response(mock_checker, mock_targets, mock_official):
+    from app.routers.scan import run_scan, ScanRequest
+
+    mock_targets.fetch_all_targets = AsyncMock(return_value=[])
+    mock_checker.check_username = AsyncMock(return_value=[_make_fake_result("GitHub", is_core=True)])
+    mock_official.return_value = {}
+
+    payload = ScanRequest(username="dpuser")
+    resp = await run_scan(_starlette_request(), payload)
+    assert len(resp.detected_platforms) == 1
+    dp = resp.detected_platforms[0]
+    assert dp.platform_name == "GitHub"
+    assert dp.is_core is True
+    assert dp.category == "coding"
+    assert "github.com" in dp.probed_url
+
+
+@pytest.mark.asyncio
+@patch("slowapi.extension.Limiter._check_request_limit")
+@patch("app.routers.scan.run_official_api_checks", new_callable=AsyncMock)
+@patch("app.routers.scan.targets")
+@patch("app.routers.scan.checker")
+async def test_run_scan_score_breakdown_includes_constants(mock_checker, mock_targets, mock_official, _limiter):
+    from app.routers.scan import run_scan, ScanRequest
+
+    mock_targets.fetch_all_targets = AsyncMock(return_value=[])
+    mock_checker.check_username = AsyncMock(return_value=[])
+    mock_official.return_value = {}
+
+    payload = ScanRequest(username="constscan")
+    resp = await run_scan(_starlette_request(), payload)
+    assert resp.score_breakdown["base_score"] == 850
+    assert resp.score_breakdown["min_score"] == 300
+    assert resp.score_breakdown["deduction_core"] == 30
+    assert resp.score_breakdown["deduction_secondary"] == 15
+
+
+@pytest.mark.asyncio
+@patch("slowapi.extension.Limiter._check_request_limit")
+@patch("app.routers.scan.run_official_api_checks", new_callable=AsyncMock)
+@patch("app.routers.scan.targets")
+@patch("app.routers.scan.checker")
+async def test_run_scan_official_api_in_detected_platforms(mock_checker, mock_targets, mock_official, _limiter):
+    from app.routers.scan import run_scan, ScanRequest
+
+    mock_targets.fetch_all_targets = AsyncMock(return_value=[])
+    mock_checker.check_username = AsyncMock(return_value=[])
+    api_result = MagicMock()
+    api_result.exists = True
+    api_result.platform = "GitHub"
+    api_result.profile_url = "https://github.com/apitest"
+    api_result.display_name = None
+    api_result.bio = None
+    api_result.created_at = None
+    api_result.followers = 0
+    api_result.extra = {}
+    mock_official.return_value = {"GitHub": api_result}
+
+    payload = ScanRequest(username="apitest")
+    resp = await run_scan(_starlette_request(), payload)
+    assert len(resp.detected_platforms) == 1
+    assert resp.detected_platforms[0].platform_name == "GitHub"
+    assert resp.detected_platforms[0].is_core is True
+    assert resp.detected_platforms[0].category == "social"

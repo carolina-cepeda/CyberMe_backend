@@ -177,3 +177,102 @@ async def test_verify_platform_not_found(mock_targets):
     with pytest.raises(HTTPException) as exc_info:
         await verify_platform(_starlette_request(), payload)
     assert exc_info.value.status_code == 404
+
+
+# --- /api/not-mine ---
+
+
+@pytest.mark.asyncio
+async def test_not_mine_success(db):
+    from app.routers.breach import not_mine, NotMineRequest
+
+    uid = get_or_create_user("notmine")
+    scan_id = create_scan(uid)
+    save_scan_result(scan_id, _make_fake_result(), probed_variant="test")
+    finish_scan(scan_id)
+
+    payload = NotMineRequest(username="notmine", platform_name="GitHub")
+    resp = await not_mine(_starlette_request(), payload)
+    assert resp.success is True
+    assert resp.platform_name == "GitHub"
+    assert resp.score <= 850
+
+
+@pytest.mark.asyncio
+async def test_not_mine_platform_not_found_404():
+    from app.routers.breach import not_mine, NotMineRequest
+    from fastapi import HTTPException
+
+    payload = NotMineRequest(username="unknownuser", platform_name="NonExistent")
+    with pytest.raises(HTTPException) as exc_info:
+        await not_mine(_starlette_request(), payload)
+    assert exc_info.value.status_code == 404
+
+
+# --- Validation ---
+
+
+@pytest.mark.asyncio
+async def test_breach_check_invalid_username():
+    from app.routers.breach import BreachCheckRequest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        BreachCheckRequest(username="ab", password="test123")
+
+
+# --- Score response constants ---
+
+
+@pytest.mark.asyncio
+async def test_score_includes_scoring_constants(db):
+    from app.routers.breach import get_score
+
+    uid = get_or_create_user("constuser")
+    scan_id = create_scan(uid)
+    save_scan_result(scan_id, _make_fake_result(), probed_variant="test")
+    finish_scan(scan_id)
+
+    resp = await get_score("constuser")
+    assert resp.base_score == 850
+    assert resp.min_score == 300
+    assert resp.deduction_core == 30
+    assert resp.deduction_secondary == 15
+
+
+# --- Verify with RequestsError ---
+
+
+@pytest.mark.asyncio
+@patch("app.osint.targets.fetch_all_targets", new_callable=AsyncMock)
+@patch("app.routers.breach.AsyncSession")
+async def test_verify_requests_error_returns_unreachable(
+    mock_session_cls, mock_targets
+):
+    from app.routers.breach import verify_platform, VerifyRequest
+    from curl_cffi.requests.errors import RequestsError
+
+    target = MagicMock()
+    target.platform_name = "GitHub"
+    target.exists_status_code = 200
+    target.is_core = True
+    target.probe_url_template = "https://github.com/{account}"
+    target.request_headers = {}
+    mock_targets.return_value = [target]
+
+    uid = get_or_create_user("reqerr")
+    scan_id = create_scan(uid)
+    save_scan_result(scan_id, _make_fake_result(), probed_variant="test")
+    finish_scan(scan_id)
+
+    mock_client_instance = AsyncMock()
+    mock_client_instance.get = AsyncMock(side_effect=RequestsError("connection failed"))
+    mock_session_instance = AsyncMock()
+    mock_session_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+    mock_session_instance.__aexit__ = AsyncMock(return_value=False)
+    mock_session_cls.return_value = mock_session_instance
+
+    payload = VerifyRequest(username="reqerr", platform_name="GitHub")
+    resp = await verify_platform(_starlette_request(), payload)
+    assert resp.platform_name == "GitHub"
+    assert resp.reclaimed_points == 0

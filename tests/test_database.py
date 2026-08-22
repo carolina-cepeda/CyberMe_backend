@@ -11,6 +11,7 @@ from app.db.database import (
     get_previous_detected_platforms,
     get_user_scans,
     init_db,
+    mark_not_mine,
     save_breach_result,
     save_score,
 )
@@ -136,3 +137,37 @@ def test_get_previous_detected_platforms_with_data(db):
 
     prev = get_previous_detected_platforms(scan2)
     assert "GitHub" in prev
+
+
+def test_mark_not_mine_updates_row(db):
+    uid = get_or_create_user("notmine")
+    scan_id = create_scan(uid)
+    from app.db.database import save_scan_result as _save
+    _save(scan_id, _make_fake_result(), probed_variant="test")
+    finish_scan(scan_id)
+
+    result = mark_not_mine(uid, "GitHub")
+    assert result is True
+
+    row = db.execute(
+        "SELECT not_mine FROM scan_results WHERE scan_id = ? AND platform_name = ?",
+        (scan_id, "GitHub"),
+    ).fetchone()
+    assert row["not_mine"] == 1
+
+
+def test_mark_not_mine_no_scan_returns_false(db):
+    uid = get_or_create_user("noscan")
+    result = mark_not_mine(uid, "GitHub")
+    assert result is False
+
+
+def test_mark_not_mine_platform_not_found_returns_false(db):
+    uid = get_or_create_user("notfound")
+    scan_id = create_scan(uid)
+    from app.db.database import save_scan_result as _save
+    _save(scan_id, _make_fake_result(), probed_variant="test")
+    finish_scan(scan_id)
+
+    result = mark_not_mine(uid, "NonExistent")
+    assert result is False
