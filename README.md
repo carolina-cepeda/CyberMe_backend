@@ -5,15 +5,13 @@
   </p>
 </p>
 
-[![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=alert_status&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
-
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=bugs&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
-
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=code_smells&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
-
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=coverage&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
-
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=duplicated_lines_density&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550)](https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend)
+<p align="center">
+  <a href="https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend"><img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=alert_status&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550" alt="Quality Gate"></a>&nbsp;
+  <a href="https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend"><img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=bugs&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550" alt="Bugs"></a>&nbsp;
+  <a href="https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend"><img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=code_smells&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550" alt="Code Smells"></a>&nbsp;
+  <a href="https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend"><img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=coverage&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550" alt="Coverage"></a>&nbsp;
+  <a href="https://sonarcloud.io/summary/new_code?id=carolina-cepeda_CyberMe_backend"><img src="https://sonarcloud.io/api/project_badges/measure?project=carolina-cepeda_CyberMe_backend&metric=duplicated_lines_density&token=0df78ff41b6929d8b0b0f496e13873b1d5e52550" alt="Duplicated Lines"></a>
+</p>
 
 ---
 
