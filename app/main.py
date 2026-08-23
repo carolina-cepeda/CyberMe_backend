@@ -7,14 +7,14 @@ from slowapi.util import get_remote_address
 
 from app import config
 from app.db.database import init_db
-from app.routers import scan, breach
+from app.routers import scan, breach, auth
 
 config.load_env()
 init_db()
 
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="CyberMe API", version="0.1.0")
+app = FastAPI(title="CyberMe API", version="0.2.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -27,6 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(scan.router)
 app.include_router(breach.router)
 

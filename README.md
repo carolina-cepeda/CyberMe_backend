@@ -113,7 +113,12 @@ backend/
 
 ## Database
 
-CyberMe uses **SQLite** stored at `backend/cyberme.db`. The persistence layer (`app/db/database.py`) manages five tables:
+CyberMe uses a **dual-mode persistence layer** (`app/db/database.py`):
+
+- **SQLite** (local development / tests) — stored at `backend/cyberme.db`
+- **Postgres** (production via Supabase) — used when `DATABASE_URL` is set
+
+The mode is auto-detected: if `DATABASE_URL` environment variable exists, Postgres is used; otherwise, SQLite.
 
 ```
 users ------+-- scans ---------- scan_results
@@ -140,6 +145,8 @@ Initialization is automatic: on server start, `init_db()` creates tables if they
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/health` | Health check |
+| `POST` | `/api/auth/signup` | Register new user (email/password) |
+| `POST` | `/api/auth/login` | Log in (email/password) |
 | `POST` | `/api/scan` | Full OSINT scan of a username |
 | `POST` | `/api/breach` | Check password against breaches (HIBP k-anonymity) |
 | `GET` | `/api/score/{username}` | Get Privacy Health Score |
@@ -170,13 +177,15 @@ curl -X POST http://localhost:8000/api/breach \
 | Component | Technology |
 |-----------|------------|
 | Framework | FastAPI (Python 3.12) |
-| Database | SQLite |
+| Database | SQLite (dev) / Supabase Postgres (prod) |
+| Auth | Supabase Auth (email/password) |
 | HTTP probing | curl_cffi (Chrome 124 TLS fingerprinting) |
 | Site lists | WhatsMyName + Maigret |
 | Official APIs | GitHub, Reddit, GitLab |
 | Breach check | HIBP Pwned Passwords (k-anonymity) |
 | Rate limiting | slowapi |
 | CI/CD | GitHub Actions + SonarCloud |
+| Deployment | Hugging Face Spaces (Docker) |
 
 ---
 
@@ -216,7 +225,31 @@ CORS_ORIGINS=http://localhost:5173
 
 # Gemini API (phase 4 - privacy tips)
 GEMINI_API_KEY=
+
+# Supabase (production — enables Postgres + auth)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+DATABASE_URL=postgresql://postgres.xxx:password@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 ```
+
+> **Note:** When `DATABASE_URL` is set, the backend uses Postgres. Without it, SQLite is used automatically.
+
+---
+
+## Deployment (Hugging Face Spaces)
+
+### Backend
+
+1. Create a new HF Space with SDK **Docker**
+2. Add repository secrets:
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+   - `DATABASE_URL` (Postgres connection string)
+   - `GEMINI_API_KEY`
+   - `CORS_ORIGINS` = `https://your-frontend.hf.space`
+3. Push the `backend/` directory contents to the Space
+
+The included `Dockerfile` handles the rest.
 
 ---
 

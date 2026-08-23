@@ -4,3 +4,5 @@ httpx==0.28.1
 curl_cffi==0.16.0
 maigret==0.6.4
 slowapi==0.1.10
+psycopg[binary]==3.2.9
+PyJWT[crypto]==2.10.1
