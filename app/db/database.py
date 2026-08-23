@@ -142,7 +142,10 @@ CREATE TABLE IF NOT EXISTS scores (
 
 def _pg_conn():
     import psycopg
-    return psycopg.connect(os.environ["DATABASE_URL"])
+    url = os.environ["DATABASE_URL"]
+    if "?" not in url:
+        url += "?sslmode=require"
+    return psycopg.connect(url)
 
 
 # ---------------------------------------------------------------------------
@@ -160,9 +163,13 @@ def get_connection() -> sqlite3.Connection:
 
 def init_db() -> None:
     if _is_postgres():
-        with _pg_conn() as conn:
-            conn.execute(POSTGRES_SCHEMA)
-            conn.commit()
+        try:
+            with _pg_conn() as conn:
+                conn.execute(POSTGRES_SCHEMA)
+                conn.commit()
+        except Exception as exc:
+            import logging
+            logging.warning("Postgres init_db failed (%s); tables must exist via Supabase SQL Editor.", exc)
     else:
         with get_connection() as conn:
             conn.executescript(SQLITE_SCHEMA)
