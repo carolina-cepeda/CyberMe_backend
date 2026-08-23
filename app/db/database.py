@@ -170,7 +170,7 @@ def init_db() -> None:
             with _pg_conn() as conn:
                 conn.execute(POSTGRES_SCHEMA)
                 conn.commit()
-        except (OSError, RuntimeError) as exc:
+        except Exception as exc:  # noqa: BLE001 – catch any driver/connection error
             logger.warning("Postgres init_db failed (%s); tables must exist via Supabase SQL Editor.", exc)
     else:
         with get_connection() as conn:
