@@ -1,10 +1,13 @@
 """Dual-mode persistence: SQLite (local/dev) or Postgres (production via Supabase)."""
 
-import sqlite3
+import logging
 import os
+import sqlite3
 from datetime import datetime, timezone
 
 from app import config
+
+logger = logging.getLogger(__name__)
 
 
 def _now() -> str:
@@ -167,9 +170,8 @@ def init_db() -> None:
             with _pg_conn() as conn:
                 conn.execute(POSTGRES_SCHEMA)
                 conn.commit()
-        except Exception as exc:
-            import logging
-            logging.warning("Postgres init_db failed (%s); tables must exist via Supabase SQL Editor.", exc)
+        except (OSError, RuntimeError) as exc:
+            logger.warning("Postgres init_db failed (%s); tables must exist via Supabase SQL Editor.", exc)
     else:
         with get_connection() as conn:
             conn.executescript(SQLITE_SCHEMA)

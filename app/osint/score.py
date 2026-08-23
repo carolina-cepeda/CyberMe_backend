@@ -9,7 +9,7 @@ Scoring rules (from skill spec):
 - Reclamation: if a previously detected URL returns NOT_FOUND, restore points
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 BASE_SCORE = 850
 MIN_SCORE = 300

@@ -4,7 +4,6 @@ These bypass HTTP probing entirely and hit the platform's own REST API,
 giving zero false positives and richer data (bios, creation dates, etc.).
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 

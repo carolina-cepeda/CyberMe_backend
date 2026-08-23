@@ -2,12 +2,12 @@
 
 import logging
 
+from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.errors import RequestsError
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from curl_cffi.requests import AsyncSession
-from curl_cffi.requests.errors import RequestsError
 
 from app import config
 
@@ -73,7 +73,7 @@ async def _supabase_request(path: str, payload: dict) -> dict:
         try:
             body = resp.json()
             msg = body.get("msg") or body.get("error_description") or str(body)
-        except Exception:
+        except (ValueError, KeyError):
             msg = resp.text or f"Supabase returned {resp.status_code}"
         raise HTTPException(status_code=401, detail=msg)
 

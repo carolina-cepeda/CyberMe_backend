@@ -192,9 +192,8 @@ async def check_username(
 
     async def limited(target: Target) -> ProbeResult:
         hostname = urlsplit(_build_url(target, username)).netloc
-        async with semaphore:
-            async with host_semaphore(hostname):
-                return await _probe_one(client, target, username)
+        async with semaphore, host_semaphore(hostname):
+            return await _probe_one(client, target, username)
 
     async with AsyncSession(
         timeout=timeout,

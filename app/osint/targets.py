@@ -142,7 +142,7 @@ async def fetch_all_targets(
                 len(maigret_targets),
                 len(all_targets),
             )
-        except Exception as exc:
+        except (ImportError, FileNotFoundError, OSError) as exc:
             logger.warning("Failed to load Maigret targets: %s", exc)
 
     return all_targets

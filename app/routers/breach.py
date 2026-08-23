@@ -2,6 +2,8 @@
 
 import re
 
+from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.errors import RequestsError
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from slowapi import Limiter
@@ -17,8 +19,6 @@ from app.db.database import (
 )
 from app.osint.breach import check_password_breach
 from app.osint.score import calculate_score
-from curl_cffi.requests import AsyncSession
-from curl_cffi.requests.errors import RequestsError
 
 router = APIRouter(prefix="/api", tags=["breach"])
 limiter = Limiter(key_func=get_remote_address)

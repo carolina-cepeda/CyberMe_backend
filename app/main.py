@@ -1,13 +1,12 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app import config
 from app.db.database import init_db
-from app.routers import scan, breach, auth
+from app.routers import auth, breach, scan
 
 config.load_env()
 init_db()
