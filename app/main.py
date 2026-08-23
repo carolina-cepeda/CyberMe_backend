@@ -35,3 +35,28 @@ app.include_router(breach.router)
 @limiter.exempt
 async def health(request: Request) -> dict:
     return {"status": "ok"}
+
+
+@app.get("/api/debug/db")
+@limiter.exempt
+async def debug_db(request: Request) -> dict:
+    import os
+    url = os.environ.get("DATABASE_URL", "")
+    if not url:
+        return {"mode": "sqlite", "message": "No DATABASE_URL set, using SQLite"}
+    stripped = url.strip()
+    # Sanitize: show host/port/db name but hide password
+    from urllib.parse import urlparse
+    parsed = urlparse(stripped)
+    return {
+        "mode": "postgres",
+        "host": parsed.hostname or "unknown",
+        "port": parsed.port or 5432,
+        "database": (parsed.path or "").lstrip("/") or "unknown",
+        "username": parsed.username or "unknown",
+        "has_password": bool(parsed.password),
+        "has_newline": "\n" in url,
+        "has_trailing_space": url != url.rstrip(),
+        "raw_length": len(url),
+        "stripped_length": len(stripped),
+    }

@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS scores (
 
 def _pg_conn():
     import psycopg
-    url = os.environ["DATABASE_URL"]
+    url = os.environ["DATABASE_URL"].strip()
     if "?" not in url:
         url += "?sslmode=require"
     return psycopg.connect(url)
