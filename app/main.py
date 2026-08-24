@@ -71,6 +71,12 @@ async def debug_db(request: Request) -> dict:
             result["connection"] = "ok"
             result["connected_database"] = row[0]
             result["pg_version"] = row[1]
+            # Check if tables exist
+            tables = conn.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' ORDER BY table_name"
+            ).fetchall()
+            result["tables"] = [t[0] for t in tables]
     except psycopg.Error as e:
         result["connection"] = "failed"
         result["error"] = str(e)
