@@ -1,5 +1,9 @@
+import logging
+
+import psycopg
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -7,6 +11,8 @@ from slowapi.util import get_remote_address
 from app import config
 from app.db.database import init_db
 from app.routers import auth, breach, scan
+
+logger = logging.getLogger(__name__)
 
 config.load_env()
 init_db()
@@ -29,6 +35,15 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(scan.router)
 app.include_router(breach.router)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {exc}"},
+    )
 
 
 @app.get("/api/health")
@@ -60,13 +75,13 @@ async def debug_db(request: Request) -> dict:
         "stripped_length": len(stripped),
     }
     try:
-        import psycopg
+        import psycopg as _psycopg
     except ImportError:
         result["connection"] = "failed"
         result["error"] = "psycopg not installed"
         return result
     try:
-        with psycopg.connect(stripped) as conn:
+        with _psycopg.connect(stripped) as conn:
             row = conn.execute("SELECT current_database(), version()").fetchone()
             result["connection"] = "ok"
             result["connected_database"] = row[0]
@@ -76,10 +91,7 @@ async def debug_db(request: Request) -> dict:
                 "WHERE table_schema = 'public' ORDER BY table_name"
             ).fetchall()
             result["tables"] = [t[0] for t in tables]
-    except psycopg.Error as e:
-        result["connection"] = "failed"
-        result["error"] = str(e)
-    except OSError as e:
+    except (_psycopg.Error, OSError) as e:
         result["connection"] = "failed"
         result["error"] = str(e)
     return result
@@ -99,36 +111,36 @@ async def debug_test_db(request: Request) -> dict:
             get_user_scans,
             save_score,
         )
-        steps["imports"] = "ok"
     except ImportError as e:
         steps["imports"] = f"FAILED: {e}"
         return steps
+    steps["imports"] = "ok"
 
     try:
         uid = get_or_create_user("__debugtest__")
         steps["get_or_create_user"] = f"ok (id={uid!r}, type={type(uid).__name__})"
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, psycopg.Error) as e:
         steps["get_or_create_user"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
     try:
         scans = get_user_scans(uid)
         steps["get_user_scans"] = f"ok (count={len(scans)})"
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, psycopg.Error) as e:
         steps["get_user_scans"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
     try:
         info = get_latest_breach(uid)
         steps["get_latest_breach"] = f"ok (result={info!r})"
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, psycopg.Error) as e:
         steps["get_latest_breach"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
     try:
         results = get_detected_results(1)
         steps["get_detected_results"] = f"ok (count={len(results)})"
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, psycopg.Error) as e:
         steps["get_detected_results"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
@@ -136,14 +148,14 @@ async def debug_test_db(request: Request) -> dict:
         scan_id = create_scan(uid)
         steps["create_scan"] = f"ok (scan_id={scan_id!r}, type={type(scan_id).__name__})"
         finish_scan(scan_id)
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, psycopg.Error) as e:
         steps["create_scan"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
     try:
         save_score(uid, 1, 700)
         steps["save_score"] = "ok"
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, psycopg.Error) as e:
         steps["save_score"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
