@@ -55,7 +55,7 @@ class BreachCheckResponse(BaseModel):
 
 
 class ScoreResponse(BaseModel):
-    user_id: int
+    user_id: int | str
     score: int
     base: int
     core_accounts: int
