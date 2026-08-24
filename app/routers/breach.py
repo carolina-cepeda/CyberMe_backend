@@ -10,12 +10,15 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.db.database import (
+    get_detected_results,
+    get_latest_breach,
     get_or_create_user,
     get_previous_detected_platforms,
     get_user_scans,
     mark_not_mine,
     save_breach_result,
     save_score,
+    update_scan_result_verdict,
 )
 from app.osint.breach import check_password_breach
 from app.osint.score import calculate_score
@@ -201,28 +204,11 @@ async def get_score(username: str) -> ScoreResponse:
     scan_id = latest_scan["id"]
 
     # Get detected platforms from the latest scan
-    from app.db.database import get_connection
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT platform_name, category, is_core, probed_url
-            FROM scan_results WHERE scan_id = ? AND detected = 1 AND not_mine = 0
-            """,
-            (scan_id,),
-        ).fetchall()
-
-    detected_platforms = [dict(r) for r in rows]
+    detected_platforms = get_detected_results(scan_id)
 
     # Check breach status
-    with get_connection() as conn:
-        breach_row = conn.execute(
-            """
-            SELECT detected FROM breaches
-            WHERE user_id = ? ORDER BY id DESC LIMIT 1
-            """,
-            (user,),
-        ).fetchone()
-    breach_detected = bool(breach_row and breach_row["detected"])
+    breach_info = get_latest_breach(user)
+    breach_detected = bool(breach_info and breach_info["detected"])
 
     # Get previous scan's detected platforms for reclamation
     previous = get_previous_detected_platforms(scan_id)
@@ -306,38 +292,14 @@ async def verify_platform(request: Request, payload: VerifyRequest) -> VerifyRes
         reclaimed = DEDUCTION_CORE if target.is_core else DEDUCTION_SECONDARY
 
         # Update the scan_results to mark this as not_found
-        from app.db.database import get_connection
-        with get_connection() as conn:
-            conn.execute(
-                """
-                UPDATE scan_results SET detected = 0, verdict = 'not_found'
-                WHERE scan_id = (
-                    SELECT id FROM scans WHERE user_id = ?
-                    ORDER BY id DESC LIMIT 1
-                ) AND platform_name = ?
-                """,
-                (user_id, payload.platform_name),
-            )
-
-        # Recalculate and save new score
         scans = get_user_scans(user_id)
         if scans:
             scan_id = scans[0]["id"]
-            with get_connection() as conn:
-                rows = conn.execute(
-                    """
-                    SELECT platform_name, category, is_core, probed_url
-                    FROM scan_results WHERE scan_id = ? AND detected = 1
-                    """,
-                    (scan_id,),
-                ).fetchall()
-            detected = [dict(r) for r in rows]
-            with get_connection() as conn:
-                breach_row = conn.execute(
-                    "SELECT detected FROM breaches WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-                    (user_id,),
-                ).fetchone()
-            breach = bool(breach_row and breach_row["detected"])
+            update_scan_result_verdict(scan_id, payload.platform_name, "not_found", 0)
+
+            detected = get_detected_results(scan_id)
+            breach_info = get_latest_breach(user_id)
+            breach = bool(breach_info and breach_info["detected"])
             previous = get_previous_detected_platforms(scan_id)
             score_result = calculate_score(
                 user_id=user_id, scan_id=scan_id,
@@ -375,26 +337,13 @@ async def not_mine(request: Request, payload: NotMineRequest) -> NotMineResponse
         )
 
     # Recalculate score
-    from app.db.database import get_connection
     scans = get_user_scans(user_id)
     score_result = None
     if scans:
         scan_id = scans[0]["id"]
-        with get_connection() as conn:
-            rows = conn.execute(
-                """
-                SELECT platform_name, category, is_core, probed_url
-                FROM scan_results WHERE scan_id = ? AND detected = 1 AND not_mine = 0
-                """,
-                (scan_id,),
-            ).fetchall()
-        detected = [dict(r) for r in rows]
-        with get_connection() as conn:
-            breach_row = conn.execute(
-                "SELECT detected FROM breaches WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-                (user_id,),
-            ).fetchone()
-        breach = bool(breach_row and breach_row["detected"])
+        detected = get_detected_results(scan_id)
+        breach_info = get_latest_breach(user_id)
+        breach = bool(breach_info and breach_info["detected"])
         previous = get_previous_detected_platforms(scan_id)
         score_result = calculate_score(
             user_id=user_id, scan_id=scan_id,
