@@ -124,10 +124,20 @@ def _result_to_official_out(r: OfficialApiResult) -> OfficialApiOut:
 @router.post(
     "/scan",
     response_model=ScanResponse,
-    responses={400: {"description": "Validation error (username too short or empty)"}},
+    responses={
+        400: {"description": "Validation error"},
+        504: {"description": "Scan timed out"},
+    },
 )
 @limiter.limit("5/minute")
 async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
+    try:
+        return await asyncio.wait_for(_run_scan_inner(payload), timeout=90)
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Scan timed out. Too many targets to probe. Try a simpler username.")
+
+
+async def _run_scan_inner(payload: ScanRequest) -> ScanResponse:
     raw_input = payload.username.strip()
     if not raw_input or len(raw_input) < 3:
         raise HTTPException(status_code=400, detail="Username must be at least 3 characters")

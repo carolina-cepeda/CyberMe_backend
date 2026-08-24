@@ -1,7 +1,6 @@
 import logging
 import os
 
-import psycopg
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -56,7 +55,6 @@ async def health(request: Request) -> dict:
 @app.get("/api/debug/db")
 @limiter.exempt
 async def debug_db(request: Request) -> dict:
-    import os
     url = os.environ.get("DATABASE_URL", "")
     if not url:
         return {"mode": "sqlite", "message": "No DATABASE_URL set, using SQLite"}
@@ -101,47 +99,46 @@ async def debug_db(request: Request) -> dict:
 @app.get("/api/debug/test-db")
 @limiter.exempt
 async def debug_test_db(request: Request) -> dict:
+    import psycopg as _psycopg
+
+    from app.db.database import (
+        create_scan,
+        finish_scan,
+        get_detected_results,
+        get_latest_breach,
+        get_or_create_user,
+        get_user_scans,
+        save_score,
+    )
+
     steps: dict = {}
-    try:
-        from app.db.database import (
-            create_scan,
-            finish_scan,
-            get_detected_results,
-            get_latest_breach,
-            get_or_create_user,
-            get_user_scans,
-            save_score,
-        )
-    except ImportError as e:
-        steps["imports"] = f"FAILED: {e}"
-        return steps
     steps["imports"] = "ok"
 
     try:
         uid = get_or_create_user("__debugtest__")
         steps["get_or_create_user"] = f"ok (id={uid!r}, type={type(uid).__name__})"
-    except (OSError, ValueError, psycopg.Error) as e:
+    except (OSError, ValueError, _psycopg.Error) as e:
         steps["get_or_create_user"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
     try:
         scans = get_user_scans(uid)
         steps["get_user_scans"] = f"ok (count={len(scans)})"
-    except (OSError, ValueError, psycopg.Error) as e:
+    except (OSError, ValueError, _psycopg.Error) as e:
         steps["get_user_scans"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
     try:
         info = get_latest_breach(uid)
         steps["get_latest_breach"] = f"ok (result={info!r})"
-    except (OSError, ValueError, psycopg.Error) as e:
+    except (OSError, ValueError, _psycopg.Error) as e:
         steps["get_latest_breach"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
     try:
         results = get_detected_results(1)
         steps["get_detected_results"] = f"ok (count={len(results)})"
-    except (OSError, ValueError, psycopg.Error) as e:
+    except (OSError, ValueError, _psycopg.Error) as e:
         steps["get_detected_results"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
@@ -149,14 +146,14 @@ async def debug_test_db(request: Request) -> dict:
         scan_id = create_scan(uid)
         steps["create_scan"] = f"ok (scan_id={scan_id!r}, type={type(scan_id).__name__})"
         finish_scan(scan_id)
-    except (OSError, ValueError, psycopg.Error) as e:
+    except (OSError, ValueError, _psycopg.Error) as e:
         steps["create_scan"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
     try:
         save_score(uid, 1, 700)
         steps["save_score"] = "ok"
-    except (OSError, ValueError, psycopg.Error) as e:
+    except (OSError, ValueError, _psycopg.Error) as e:
         steps["save_score"] = f"FAILED: {type(e).__name__}: {e}"
         return steps
 
@@ -167,13 +164,14 @@ async def debug_test_db(request: Request) -> dict:
 @app.get("/api/debug/schema")
 @limiter.exempt
 async def debug_schema(request: Request) -> dict:
+    import psycopg as _psycopg
     try:
-        with psycopg.connect(os.environ["DATABASE_URL"].strip()) as conn:
+        with _psycopg.connect(os.environ["DATABASE_URL"].strip()) as conn:
             tables = conn.execute(
                 "SELECT table_name FROM information_schema.tables "
                 "WHERE table_schema = 'public' ORDER BY table_name"
             ).fetchall()
-            result = {}
+            result: dict = {}
             for (tname,) in tables:
                 cols = conn.execute(
                     "SELECT column_name, data_type, udt_name, "
@@ -188,7 +186,7 @@ async def debug_schema(request: Request) -> dict:
                     for c in cols
                 ]
                 fks = conn.execute(
-                    "SELECT tc.column_name, ccu.table_name AS ref_table, "
+                    "SELECT ccu.column_name, ccu.table_name AS ref_table, "
                     "ccu.column_name AS ref_column "
                     "FROM information_schema.table_constraints tc "
                     "JOIN information_schema.constraint_column_usage ccu "
@@ -203,5 +201,5 @@ async def debug_schema(request: Request) -> dict:
                         for f in fks
                     ]
             return result
-    except (psycopg.Error, OSError) as e:
+    except (_psycopg.Error, OSError) as e:
         return {"error": f"{type(e).__name__}: {e}"}

@@ -117,7 +117,7 @@ async def fetch_all_targets(
     force: bool = False,
     include_protected: bool | None = None,
     include_maigret: bool = True,
-    maigret_max: int = 200,
+    maigret_max: int = 50,
 ) -> list[Target]:
     """Fetch and merge targets from WhatsMyName + Maigret.
 
