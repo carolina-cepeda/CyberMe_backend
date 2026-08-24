@@ -13,6 +13,7 @@ limiter = Limiter(key_func=get_remote_address)
 from app.db.database import (
     create_scan,
     finish_scan,
+    get_latest_breach,
     get_or_create_user,
     get_previous_detected_platforms,
     save_scan_result,
@@ -192,14 +193,8 @@ async def run_scan(request: Request, payload: ScanRequest) -> ScanResponse:
                 "probed_url": api_result.profile_url or "",
             })
 
-    # Check breach status (if previously checked)
-    from app.db.database import get_connection
-    with get_connection() as conn:
-        breach_row = conn.execute(
-            "SELECT detected FROM breaches WHERE user_id = ? ORDER BY id DESC LIMIT 1",
-            (user_id,),
-        ).fetchone()
-    breach_detected = bool(breach_row and breach_row["detected"])
+    breach_info = get_latest_breach(user_id)
+    breach_detected = bool(breach_info and breach_info["detected"])
 
     # Get previous scan's detected platforms for reclamation
     previous_detected = get_previous_detected_platforms(scan_id)
