@@ -188,13 +188,14 @@ def init_db() -> None:
 def get_or_create_user(username: str, user_id: str | None = None) -> int | str:
     """Get or create user. Returns int (SQLite) or str UUID (Postgres)."""
     if _is_postgres():
+        import uuid as _uuid
         with _pg_conn() as conn:
             row = conn.execute(
                 "SELECT id FROM users WHERE username = %s", (username,)
             ).fetchone()
             if row:
                 return row[0]
-            uid = user_id or username
+            uid = user_id or str(_uuid.uuid4())
             conn.execute(
                 "INSERT INTO users (id, username, created_at) VALUES (%s, %s, %s) ON CONFLICT (username) DO NOTHING",
                 (uid, username, _now()),
