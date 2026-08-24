@@ -1,4 +1,5 @@
 import logging
+import os
 
 import psycopg
 from fastapi import FastAPI, Request
@@ -161,3 +162,46 @@ async def debug_test_db(request: Request) -> dict:
 
     steps["all"] = "ALL PASSED"
     return steps
+
+
+@app.get("/api/debug/schema")
+@limiter.exempt
+async def debug_schema(request: Request) -> dict:
+    try:
+        with psycopg.connect(os.environ["DATABASE_URL"].strip()) as conn:
+            tables = conn.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' ORDER BY table_name"
+            ).fetchall()
+            result = {}
+            for (tname,) in tables:
+                cols = conn.execute(
+                    "SELECT column_name, data_type, udt_name, "
+                    "is_nullable, column_default "
+                    "FROM information_schema.columns "
+                    "WHERE table_schema = 'public' AND table_name = %s "
+                    "ORDER BY ordinal_position",
+                    (tname,),
+                ).fetchall()
+                result[tname] = [
+                    {"col": c[0], "type": c[1], "udt": c[2], "nullable": c[3], "default": c[4]}
+                    for c in cols
+                ]
+                fks = conn.execute(
+                    "SELECT tc.column_name, ccu.table_name AS ref_table, "
+                    "ccu.column_name AS ref_column "
+                    "FROM information_schema.table_constraints tc "
+                    "JOIN information_schema.constraint_column_usage ccu "
+                    "ON tc.constraint_name = ccu.constraint_name "
+                    "WHERE tc.constraint_type = 'FOREIGN KEY' "
+                    "AND tc.table_schema = 'public' AND tc.table_name = %s",
+                    (tname,),
+                ).fetchall()
+                if fks:
+                    result[tname + "_fks"] = [
+                        {"col": f[0], "references": f"{f[1]}.{f[2]}"}
+                        for f in fks
+                    ]
+            return result
+    except (psycopg.Error, OSError) as e:
+        return {"error": f"{type(e).__name__}: {e}"}
