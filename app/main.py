@@ -45,10 +45,9 @@ async def debug_db(request: Request) -> dict:
     if not url:
         return {"mode": "sqlite", "message": "No DATABASE_URL set, using SQLite"}
     stripped = url.strip()
-    # Sanitize: show host/port/db name but hide password
     from urllib.parse import urlparse
     parsed = urlparse(stripped)
-    return {
+    result = {
         "mode": "postgres",
         "host": parsed.hostname or "unknown",
         "port": parsed.port or 5432,
@@ -60,3 +59,22 @@ async def debug_db(request: Request) -> dict:
         "raw_length": len(url),
         "stripped_length": len(stripped),
     }
+    try:
+        import psycopg
+    except ImportError:
+        result["connection"] = "failed"
+        result["error"] = "psycopg not installed"
+        return result
+    try:
+        with psycopg.connect(stripped) as conn:
+            row = conn.execute("SELECT current_database(), version()").fetchone()
+            result["connection"] = "ok"
+            result["connected_database"] = row[0]
+            result["pg_version"] = row[1]
+    except psycopg.Error as e:
+        result["connection"] = "failed"
+        result["error"] = str(e)
+    except OSError as e:
+        result["connection"] = "failed"
+        result["error"] = str(e)
+    return result
