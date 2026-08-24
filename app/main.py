@@ -23,7 +23,10 @@ app = FastAPI(title="CyberMe API", version="0.2.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-ALLOWED_ORIGINS = config.get_setting("CORS_ORIGINS", "http://localhost:5173").split(",")
+ALLOWED_ORIGINS = config.get_setting(
+    "CORS_ORIGINS",
+    "http://localhost:5173,https://cyber-me-frontend.vercel.app",
+).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,

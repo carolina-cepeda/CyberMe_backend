@@ -123,14 +123,18 @@ async def _probe_one(
 ) -> ProbeResult:
     url = _build_url(target, username)
     last_error: Exception | None = None
+    probe_timeout = config.DEFAULT_TIMEOUT + 3.0
 
     for attempt in range(1 + config.DEFAULT_PROBE_RETRIES):
         try:
-            response = await client.get(
-                url,
-                headers=target.request_headers or None,
-                impersonate="chrome124",
-                allow_redirects=True,
+            response = await asyncio.wait_for(
+                client.get(
+                    url,
+                    headers=target.request_headers or None,
+                    impersonate="chrome124",
+                    allow_redirects=True,
+                ),
+                timeout=probe_timeout,
             )
             final_status = response.status_code
             first_hop_status = (
